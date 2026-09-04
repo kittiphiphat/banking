@@ -35,6 +35,8 @@ export default function Home() {
   const [selectedMonth, setSelectedMonth] = useState(currentMonthKey);
   const [form, setForm] = useState({ title: "", category: "รายได้ประจำ", amount: "", type: "expense" as Entry["type"] });
   const [formError, setFormError] = useState("");
+  const [alertMessage, setAlertMessage] = useState("");
+  const [deleteTarget, setDeleteTarget] = useState<{ type: "entry"; id: number } | { type: "saving"; month: string } | null>(null);
 
   useEffect(() => {
     const saved = window.localStorage.getItem("pocket-balance-entries");
@@ -153,11 +155,35 @@ export default function Home() {
   useEffect(() => {
     if (loaded) window.localStorage.setItem("pocket-balance-goal", JSON.stringify(goal));
   }, [goal, loaded]);
-
+  useEffect(() => {
+    if (!showForm) return;
+    const entryForm = document.querySelector<HTMLFormElement>('main form');
+    if (entryForm) entryForm.noValidate = true;
+  }, [showForm]);
   const filtered = useMemo(() => entries.filter((entry) => {
     const matchesTab = activeTab === "all" || entry.type === activeTab;
     return entry.date.startsWith(selectedMonth) && matchesTab && `${entry.title} ${entry.category}`.toLowerCase().includes(query.toLowerCase());
   }), [entries, activeTab, query, selectedMonth]);
+  useEffect(() => {
+    const latestSection = Array.from(document.querySelectorAll("main section")).find((section) => section.querySelector("h2")?.textContent === "รายการล่าสุด");
+    const rows = latestSection?.querySelectorAll<HTMLElement>(".divide-y > div");
+    if (!rows) return;
+    const buttons: HTMLButtonElement[] = [];
+    rows.forEach((row, index) => {
+      const entry = filtered[index];
+      if (!entry || row.querySelector("[data-latest-delete]") || row.querySelector("button")) return;
+      const button = document.createElement("button");
+      button.type = "button";
+      button.dataset.latestDelete = "true";
+      button.setAttribute("aria-label", `ลบ ${entry.title}`);
+      button.className = "order-last rounded-md p-1.5 text-[#d9858b] hover:bg-[#fff0f0]";
+      button.append(document.createTextNode("ลบ"));
+      button.addEventListener("click", () => deleteEntry(entry.id));
+      row.append(button);
+      buttons.push(button);
+    });
+    return () => buttons.forEach((button) => button.remove());
+  }, [filtered]);
   const selectedEntries = entries.filter((entry) => entry.date.startsWith(selectedMonth));
   const monthData = monthKeys.map((key) => {
     const monthEntries = entries.filter((entry) => entry.date.startsWith(key));
@@ -194,8 +220,16 @@ export default function Home() {
     event.preventDefault();
     const title = form.title.trim();
     const amount = Number(form.amount);
-    if (!title || !form.amount || !Number.isFinite(amount) || amount <= 0) {
-      window.alert("กรุณากรอกชื่อรายการและจำนวนเงินให้ครบถ้วน โดยจำนวนเงินต้องมากกว่า 0");
+    if (!title && !form.amount) {
+      setAlertMessage("กรุณากรอกชื่อรายการและจำนวนเงิน");
+      return;
+    }
+    if (!title) {
+      setAlertMessage("กรุณากรอกชื่อรายการ");
+      return;
+    }
+    if (!form.amount || !Number.isFinite(amount) || amount <= 0) {
+      setAlertMessage("กรุณากรอกจำนวนเงินให้ถูกต้อง โดยจำนวนเงินต้องมากกว่า 0");
       return;
     }
     const entry = { id: editingId ?? Date.now(), title, category: form.category, amount, type: form.type, date: editingId ? entries.find((item) => item.id === editingId)?.date ?? new Date().toISOString().slice(0, 10) : new Date().toISOString().slice(0, 10) };
@@ -214,8 +248,30 @@ export default function Home() {
   }
 
   function deleteEntry(id: number) {
-    if (!window.confirm("ต้องการลบรายการนี้ใช่หรือไม่")) return;
+    setDeleteTarget({ type: "entry", id });
+  }
+
+  function deleteSaving(month: string) {
+    setDeleteTarget({ type: "saving", month });
+  }
+
+  function removeEntry(id: number) {
     setEntries((items) => items.filter((item) => item.id !== id));
+  }
+
+  function removeSaving(month: string) {
+    setGoal((items) => {
+      const nextGoal = { ...items };
+      delete nextGoal[month];
+      return nextGoal;
+    });
+  }
+
+  function confirmDelete() {
+    if (!deleteTarget) return;
+    if (deleteTarget.type === "entry") removeEntry(deleteTarget.id);
+    else removeSaving(deleteTarget.month);
+    setDeleteTarget(null);
   }
 
   function openAddForm() {
@@ -234,7 +290,9 @@ export default function Home() {
 
   return (
     <main className="min-h-screen overflow-hidden bg-[#fffaf4]">
+      {alertMessage && <div className="fixed inset-0 z-50 grid place-items-center bg-[#23352d]/35 p-4 backdrop-blur-sm" role="alertdialog" aria-modal="true" aria-labelledby="alert-title"><div className="w-full max-w-sm rounded-2xl bg-white p-7 text-center shadow-2xl"><div className="mx-auto grid size-14 place-items-center rounded-full bg-[#fff0d9] text-[#d88938]"><span className="text-2xl font-bold">!</span></div><h2 id="alert-title" className="mt-4 text-lg font-semibold text-[#29322d]">กรอกข้อมูลไม่ครบ</h2><p className="mt-2 text-sm leading-6 text-[#819087]">{alertMessage}</p><button type="button" autoFocus onClick={() => setAlertMessage("")} className="mt-6 w-full rounded-xl bg-[#527c67] px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-[#315947]">รับทราบ</button></div></div>}
       {showDrawer && <div className="fixed inset-0 z-20 bg-[#23352d]/30 lg:hidden" onClick={() => setShowDrawer(false)}><aside className="h-full w-72 bg-[#f5f8f0] px-6 py-8 shadow-2xl" onClick={(event) => event.stopPropagation()}><div className="flex items-center justify-between"><div className="flex items-center gap-3 text-[#315947]"><span className="grid size-10 place-items-center rounded-xl bg-[#527c67] text-white"><Wallet size={21} /></span><span className="text-xl font-semibold tracking-tight">Pocket<span className="text-[#e99a9d]">Balance</span></span></div><button type="button" aria-label="ปิดเมนู" onClick={() => setShowDrawer(false)} className="rounded-lg p-2 text-[#819087] hover:bg-[#e8f1e8]"><X size={19} /></button></div><nav className="mt-16 space-y-2"><button type="button" onClick={() => goToSection("overview")} className="flex w-full items-center gap-3 rounded-xl bg-[#dfece1] px-4 py-3 text-left text-sm font-semibold text-[#315947]"><LayoutDashboard size={18} /> ภาพรวม</button><button type="button" onClick={() => goToSection("transactions")} className="flex w-full items-center gap-3 rounded-xl px-4 py-3 text-left text-sm text-[#819087] transition hover:bg-[#e8f1e8] hover:text-[#315947]"><CreditCard size={18} /> รายการทั้งหมด</button><button type="button" onClick={() => goToSection("savings")} className="flex w-full items-center gap-3 rounded-xl px-4 py-3 text-left text-sm text-[#819087] transition hover:bg-[#e8f1e8] hover:text-[#315947]"><Wallet size={18} /> บันทึกการออมรายเดือน</button></nav></aside></div>}
+      {deleteTarget && <div className="fixed inset-0 z-50 grid place-items-center bg-[#23352d]/35 p-4 backdrop-blur-sm" role="alertdialog" aria-modal="true" aria-labelledby="delete-title"><div className="w-full max-w-sm rounded-2xl bg-white p-7 text-center shadow-2xl"><div className="mx-auto grid size-14 place-items-center rounded-full bg-[#fff0d9] text-[#d88938]"><Trash2 size={25} /></div><h2 id="delete-title" className="mt-4 text-lg font-semibold text-[#29322d]">ยืนยันการลบ</h2><p className="mt-2 text-sm leading-6 text-[#819087]">ข้อมูลที่ลบแล้วจะไม่สามารถเรียกคืนได้</p><div className="mt-6 flex gap-3"><button type="button" onClick={() => setDeleteTarget(null)} className="flex-1 rounded-xl bg-[#f3f5f0] px-4 py-2.5 text-sm font-semibold text-[#66756c] hover:bg-[#e8eee6]">ยกเลิก</button><button type="button" autoFocus onClick={confirmDelete} className="flex-1 rounded-xl bg-[#d9858b] px-4 py-2.5 text-sm font-semibold text-white hover:bg-[#bf6d75]">ลบข้อมูล</button></div></div></div>}
       <div className="mx-auto flex max-w-360">
         <aside className="hidden min-h-screen w-59.5 shrink-0 border-r border-[#e7e8df] bg-[#f5f8f0] px-6 py-8 lg:block">
           <div className="flex items-center gap-3 text-[#315947]"><span className="grid size-10 place-items-center rounded-xl bg-[#527c67] text-white"><Wallet size={21} /></span><span className="text-xl font-semibold tracking-tight">Pocket<span className="text-[#e99a9d]">Balance</span></span></div>
@@ -263,7 +321,7 @@ export default function Home() {
         </div>
       </section>
       <section className="mx-auto w-full max-w-360 px-5 pb-10 sm:px-8 lg:px-12">
-        <div className="rounded-2xl border border-[#e9e9df] bg-white p-6 shadow-[0_8px_30px_rgba(65,80,62,.04)]"><div className="flex items-center justify-between"><div><p className="text-xs tracking-[.14em] text-[#9ca89f]">เป้าหมายการออม</p><h2 className="mt-1 text-lg font-semibold">ประวัติการออมรายเดือน</h2></div><span className="rounded-lg bg-[#e5f1e6] p-2 text-[#527c67]"><Wallet size={18} /></span></div><div className="mt-5 divide-y divide-[#f0f1eb]">{savingHistory.map((item) => <div key={item.month} className="flex items-center justify-between py-3"><span className="text-sm text-[#66756c]">{new Intl.DateTimeFormat("th-TH", { month: "long", year: "numeric" }).format(new Date(`${item.month}-01`))}</span><span className="text-sm font-semibold text-[#527c67]">ออม ฿{money(item.amount)}</span></div>)}{savingHistory.length === 0 && <p className="py-6 text-center text-sm text-[#9ca89f]">ยังไม่มีรายการออมรายเดือน</p>}</div></div>
+        <div className="rounded-2xl border border-[#e9e9df] bg-white p-6 shadow-[0_8px_30px_rgba(65,80,62,.04)]"><div className="flex items-center justify-between"><div><p className="text-xs tracking-[.14em] text-[#9ca89f]">เป้าหมายการออม</p><h2 className="mt-1 text-lg font-semibold">ประวัติการออมรายเดือน</h2></div><span className="rounded-lg bg-[#e5f1e6] p-2 text-[#527c67]"><Wallet size={18} /></span></div><div className="mt-5 divide-y divide-[#f0f1eb]">{savingHistory.map((item) => <div key={item.month} className="flex items-center justify-between gap-3 py-3"><div><span className="text-sm text-[#66756c]">{new Intl.DateTimeFormat("th-TH", { month: "long", year: "numeric" }).format(new Date(`${item.month}-01`))}</span><p className="mt-1 text-sm font-semibold text-[#527c67]">ออม ฿{money(item.amount)}</p></div><button type="button" aria-label={`ลบข้อมูลการออม ${item.month}`} onClick={() => deleteSaving(item.month)} className="rounded-md p-1.5 text-[#d9858b] hover:bg-[#fff0f0]"><Trash2 size={15} /></button></div>)}{savingHistory.length === 0 && <p className="py-6 text-center text-sm text-[#9ca89f]">ยังไม่มีรายการออมรายเดือน</p>}</div></div>
       </section>
     </main>
   );
