@@ -63,6 +63,9 @@ main > section {
 main > div > section { margin: 16px; }
 main > section { margin: 0 16px; }
 main > section > div > section:nth-child(2) { display: none; }
+.max-w-360 { width: 100%; }
+main > div > section,
+main > section { margin-left: 0; margin-right: 0; }
 ::selection { background: #f3c8c9; color: var(--tea-dark); }
 
 @keyframes rise { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
@@ -78,7 +81,7 @@ main > section > div > section:nth-child(2) { display: none; }
 
 @media (max-width: 639px) {
   main > div > section,
-  main > section { margin-left: 8px; margin-right: 8px; border-radius: 20px; }
+  main > section { margin-left: 0; margin-right: 0; border-radius: 20px; }
   main > div > section { padding-left: 16px; padding-right: 16px; }
   main > section { padding-left: 16px; padding-right: 16px; }
   .custom-month-picker { min-width: 0; width: 100%; }

@@ -1008,6 +1008,14 @@ main > section {
 main > section > div > section:nth-child(2) {
   display: none;
 }
+.max-w-360 {
+  width: 100%;
+}
+main > div > section,
+main > section {
+  margin-left: 0;
+  margin-right: 0;
+}
 ::selection {
   background: #f3c8c9;
   color: var(--tea-dark);
@@ -1051,8 +1059,8 @@ main > section > div > section:nth-child(2) {
 @media (max-width: 639px) {
   main > div > section,
   main > section {
-    margin-left: 8px;
-    margin-right: 8px;
+    margin-left: 0;
+    margin-right: 0;
     border-radius: 20px;
   }
   main > div > section {
