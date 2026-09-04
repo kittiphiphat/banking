@@ -34,11 +34,20 @@ export default function Home() {
   const [activeTab, setActiveTab] = useState<"all" | "income" | "expense">("all");
   const [selectedMonth, setSelectedMonth] = useState(currentMonthKey);
   const [form, setForm] = useState({ title: "", category: "รายได้ประจำ", amount: "", type: "expense" as Entry["type"] });
+  const [formError, setFormError] = useState("");
 
   useEffect(() => {
     const saved = window.localStorage.getItem("pocket-balance-entries");
-    if (saved) setEntries(JSON.parse(saved));
+    if (saved) {
+      try { setEntries(JSON.parse(saved)); } catch { window.localStorage.removeItem("pocket-balance-entries"); }
+    }
+    const syncEntries = (event: StorageEvent) => {
+      if (event.key !== "pocket-balance-entries" || !event.newValue) return;
+      try { setEntries(JSON.parse(event.newValue)); } catch { /* Ignore invalid external storage data. */ }
+    };
+    window.addEventListener("storage", syncEntries);
     setLoaded(true);
+    return () => window.removeEventListener("storage", syncEntries);
   }, []);
   useEffect(() => {
     const select = document.querySelector<HTMLSelectElement>('select[aria-label="เลือกช่วงเวลา"]');
@@ -183,10 +192,16 @@ export default function Home() {
 
   function addEntry(event: React.FormEvent) {
     event.preventDefault();
-    if (!form.title || !form.amount) return;
-    const entry = { id: editingId ?? Date.now(), title: form.title, category: form.category, amount: Number(form.amount), type: form.type, date: editingId ? entries.find((item) => item.id === editingId)?.date ?? new Date().toISOString().slice(0, 10) : new Date().toISOString().slice(0, 10) };
-    setEntries(editingId ? entries.map((item) => item.id === editingId ? entry : item) : [entry, ...entries]);
+    const title = form.title.trim();
+    const amount = Number(form.amount);
+    if (!title || !form.amount || !Number.isFinite(amount) || amount <= 0) {
+      window.alert("กรุณากรอกชื่อรายการและจำนวนเงินให้ครบถ้วน โดยจำนวนเงินต้องมากกว่า 0");
+      return;
+    }
+    const entry = { id: editingId ?? Date.now(), title, category: form.category, amount, type: form.type, date: editingId ? entries.find((item) => item.id === editingId)?.date ?? new Date().toISOString().slice(0, 10) : new Date().toISOString().slice(0, 10) };
+    setEntries((items) => editingId ? items.map((item) => item.id === editingId ? entry : item) : [entry, ...items]);
     setForm({ title: "", category: "รายได้ประจำ", amount: "", type: "expense" });
+    setFormError("");
     setEditingId(null);
     setShowForm(false);
   }
@@ -194,11 +209,20 @@ export default function Home() {
   function editEntry(entry: Entry) {
     setEditingId(entry.id);
     setForm({ title: entry.title, category: entry.category, amount: String(entry.amount), type: entry.type });
+    setFormError("");
     setShowForm(true);
   }
 
   function deleteEntry(id: number) {
+    if (!window.confirm("ต้องการลบรายการนี้ใช่หรือไม่")) return;
     setEntries((items) => items.filter((item) => item.id !== id));
+  }
+
+  function openAddForm() {
+    setEditingId(null);
+    setForm({ title: "", category: "รายได้ประจำ", amount: "", type: "expense" });
+    setFormError("");
+    setShowForm(true);
   }
 
   function saveGoal(event: React.FormEvent) {
@@ -218,7 +242,7 @@ export default function Home() {
           <div className="mt-auto pt-107.5 text-xs leading-6 text-[#9ca89f]">จัดการเงินของคุณ<br />ให้เป็นเรื่องง่ายในทุกวัน</div>
         </aside>
         <section className="min-w-0 flex-1 px-5 py-5 sm:px-8 lg:px-12 lg:py-8">
-          <header className="flex items-center justify-between"><div className="flex items-center gap-3 lg:hidden"><button type="button" aria-label="เปิดเมนู" onClick={() => setShowDrawer(true)} className="rounded-lg p-1 text-[#527c67] hover:bg-[#e8f1e8]"><Menu size={21} /></button><span className="font-semibold text-[#315947]">Pocket<span className="text-[#e99a9d]">Balance</span></span></div><div className="hidden lg:block"><p className="text-sm text-[#9ca89f]">{todayLabel}</p></div><button onClick={() => setShowForm(true)} className="flex items-center gap-2 rounded-xl bg-[#e99a9d] px-4 py-2.5 text-sm font-semibold text-white shadow-[0_8px_20px_rgba(233,154,157,.22)] transition hover:bg-[#d9858b]"><CirclePlus size={18} /> เพิ่มรายการ</button></header>
+          <header className="flex items-center justify-between"><div className="flex items-center gap-3 lg:hidden"><button type="button" aria-label="เปิดเมนู" onClick={() => setShowDrawer(true)} className="rounded-lg p-1 text-[#527c67] hover:bg-[#e8f1e8]"><Menu size={21} /></button><span className="font-semibold text-[#315947]">Pocket<span className="text-[#e99a9d]">Balance</span></span></div><div className="hidden lg:block"><p className="text-sm text-[#9ca89f]">{todayLabel}</p></div><button onClick={openAddForm} className="flex items-center gap-2 rounded-xl bg-[#e99a9d] px-4 py-2.5 text-sm font-semibold text-white shadow-[0_8px_20px_rgba(233,154,157,.22)] transition hover:bg-[#d9858b]"><CirclePlus size={18} /> เพิ่มรายการ</button></header>
           <div className="mt-8 grid gap-4 md:grid-cols-3"><SummaryCard label="ยอดคงเหลือ" value={balance} icon={<Wallet size={20} />} tone="green" note={`สรุปของ${selectedMonthLabel}`} /><SummaryCard label="รายรับทั้งหมด" value={income} icon={<ArrowDownLeft size={20} />} tone="pink" note={`รายรับ${selectedMonthLabel}`} /><SummaryCard label="รายจ่ายทั้งหมด" value={expense} icon={<ArrowUpRight size={20} />} tone="cream" note={`รายจ่าย${selectedMonthLabel}`} /></div>
           <div className="mt-6 grid gap-6 xl:grid-cols-[1.45fr_1fr]">
             <section className="animate-rise rounded-2xl border border-[#e9e9df] bg-white p-5 shadow-[0_8px_30px_rgba(65,80,62,.04)] sm:p-6"><div className="flex items-start justify-between"><div><p className="text-xs font-medium uppercase tracking-[.14em] text-[#9ca89f]">ภาพรวมเงิน</p><h2 className="mt-1 text-lg font-semibold">รายรับ - รายจ่าย</h2></div><div className="flex items-center gap-2 rounded-lg border border-[#e7e8df] px-3 py-2 text-xs text-[#66756c]"><select aria-label="เลือกช่วงเวลา" value={selectedMonth} onChange={(e) => setSelectedMonth(e.target.value)} className="bg-transparent outline-none"><option value="2025-01">มกราคม 2568</option><option value="2025-02">กุมภาพันธ์ 2568</option><option value="2025-03">มีนาคม 2568</option><option value="2025-04">เมษายน 2568</option><option value="2025-05">พฤษภาคม 2568</option><option value="2025-06">มิถุนายน 2568</option></select><ChevronDown size={14} /></div></div><div className="mt-7 flex items-center gap-5 text-xs text-[#819087]"><span className="flex items-center gap-2"><i className="size-2.5 rounded-full bg-[#527c67]" />รายรับ</span><span className="flex items-center gap-2"><i className="size-2.5 rounded-full bg-[#e99a9d]" />รายจ่าย</span><span className="ml-auto text-[#9ca89f]">ย้อนหลัง 6 เดือน</span></div><div className="mt-5 flex h-52 items-end gap-3 border-b border-dashed border-[#e8e9e2] px-1 sm:gap-6">{monthData.map((item, index) => <button type="button" onClick={() => setSelectedMonth(`2025-${String(index + 1).padStart(2, "0")}`)} className={`flex h-full flex-1 items-end justify-center gap-1.5 rounded-t-lg px-1 ${selectedMonth === `2025-${String(index + 1).padStart(2, "0")}` ? "bg-[#f7faf4]" : ""}`} key={monthLabels[index]} aria-label={`ดูข้อมูลเดือน${monthLabels[index]}`}><div title={`รายรับ ${money(item.income)} บาท`} className="w-3 rounded-t-md bg-[#72a087] transition-all hover:bg-[#527c67] sm:w-5" style={{ height: `${item.income / 50000 * 100}%` }} /><div title={`รายจ่าย ${money(item.expense)} บาท`} className="w-3 rounded-t-md bg-[#efb4b5] transition-all hover:bg-[#e99a9d] sm:w-5" style={{ height: `${item.expense / 50000 * 100}%` }} /></button>)}</div><div className="mt-3 flex justify-between px-1 text-[11px] text-[#9ca89f]">{monthLabels.map((label) => <span key={label}>{label}</span>)}</div></section>

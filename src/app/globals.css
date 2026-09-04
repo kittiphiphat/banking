@@ -70,3 +70,8 @@ main > section > div > section:nth-child(2) { display: none; }
 .delay-1 { animation-delay: .08s; }
 .delay-2 { animation-delay: .16s; }
 .delay-3 { animation-delay: .24s; }
+
+.divide-y > div:nth-child(3n + 1) { background: #f7fbf4; }
+.divide-y > div:nth-child(3n + 2) { background: #fff7f7; }
+.divide-y > div:nth-child(3n + 3) { background: #fffaf1; }
+.divide-y > div { padding-left: .65rem; padding-right: .65rem; border-radius: 10px; }
