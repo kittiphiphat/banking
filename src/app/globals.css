@@ -75,3 +75,25 @@ main > section > div > section:nth-child(2) { display: none; }
 .divide-y > div:nth-child(3n + 2) { background: #fff7f7; }
 .divide-y > div:nth-child(3n + 3) { background: #fffaf1; }
 .divide-y > div { padding-left: .65rem; padding-right: .65rem; border-radius: 10px; }
+
+@media (max-width: 639px) {
+  main > div > section,
+  main > section { margin-left: 8px; margin-right: 8px; border-radius: 20px; }
+  main > div > section { padding-left: 16px; padding-right: 16px; }
+  main > section { padding-left: 16px; padding-right: 16px; }
+  .custom-month-picker { min-width: 0; width: 100%; }
+  .custom-month-trigger { min-width: 0; font-size: .7rem; }
+  .month-picker-container { min-width: 0; }
+  select[aria-label="เลือกช่วงเวลา"] { min-width: 0; max-width: 100%; }
+  .mt-4.grid.grid-cols-2 { grid-template-columns: 1fr; }
+  .mt-4.grid.grid-cols-2 > label { width: 100%; }
+  .divide-y > div { gap: .5rem; }
+  .divide-y > div > div:last-child { min-width: 0; }
+  .divide-y > div > div:last-child > span { white-space: nowrap; }
+}
+
+@media (max-width: 420px) {
+  .divide-y > div { align-items: flex-start; }
+  .divide-y > div > div:last-child { flex-wrap: wrap; justify-content: flex-end; }
+  .divide-y > div > div:last-child > span { font-size: .75rem; }
+}
