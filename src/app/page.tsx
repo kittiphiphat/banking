@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { ArrowDownLeft, ArrowUpRight, ChevronDown, CirclePlus, CreditCard, LayoutDashboard, Menu, Pencil, Search, Trash2, Wallet, X } from "lucide-react";
+import { isSupabaseConfigured, supabase } from "../lib/supabase";
 
 type Entry = { id: number; title: string; category: string; amount: number; type: "income" | "expense"; date: string };
 type Goal = Record<string, number>;
@@ -39,17 +40,54 @@ export default function Home() {
   const [deleteTarget, setDeleteTarget] = useState<{ type: "entry"; id: number } | { type: "saving"; month: string } | null>(null);
 
   useEffect(() => {
-    const saved = window.localStorage.getItem("pocket-balance-entries");
-    if (saved) {
-      try { setEntries(JSON.parse(saved)); } catch { window.localStorage.removeItem("pocket-balance-entries"); }
-    }
-    const syncEntries = (event: StorageEvent) => {
-      if (event.key !== "pocket-balance-entries" || !event.newValue) return;
-      try { setEntries(JSON.parse(event.newValue)); } catch { /* Ignore invalid external storage data. */ }
+    let active = true;
+    const loadData = async () => {
+      if (isSupabaseConfigured && supabase) {
+        const [{ data: remoteEntries, error: entriesError }, { data: remoteSavings, error: savingsError }] = await Promise.all([
+          supabase.from("entries").select("id, title, category, amount, type, entry_date").order("created_at", { ascending: false }),
+          supabase.from("savings").select("month_key, amount"),
+        ]);
+        if (!active) return;
+        if (entriesError || savingsError) {
+          console.error("Supabase load failed", { entriesError, savingsError });
+          setAlertMessage("เชื่อมต่อ Supabase ไม่สำเร็จ กรุณาตรวจสอบว่ารัน supabase-schema.sql แล้ว");
+        }
+        if (remoteEntries?.length) {
+          setEntries(remoteEntries.map((entry) => ({ id: Number(entry.id), title: entry.title, category: entry.category, amount: Number(entry.amount), type: entry.type as Entry["type"], date: entry.entry_date })));
+        } else {
+          const localEntries = window.localStorage.getItem("pocket-balance-entries");
+          if (localEntries) {
+            try { setEntries(JSON.parse(localEntries)); } catch { window.localStorage.removeItem("pocket-balance-entries"); }
+          }
+        }
+        if (remoteSavings?.length) {
+          setGoal(Object.fromEntries(remoteSavings.map((item) => [item.month_key, Number(item.amount)])));
+        } else {
+          const localGoal = window.localStorage.getItem("pocket-balance-goal");
+          if (localGoal) {
+            try { setGoal(JSON.parse(localGoal)); } catch { window.localStorage.removeItem("pocket-balance-goal"); }
+          }
+        }
+      } else {
+        const saved = window.localStorage.getItem("pocket-balance-entries");
+        if (saved) {
+          try { setEntries(JSON.parse(saved)); } catch { window.localStorage.removeItem("pocket-balance-entries"); }
+        }
+        const savedGoal = window.localStorage.getItem("pocket-balance-goal");
+        if (savedGoal) {
+          try { setGoal(JSON.parse(savedGoal)); } catch { window.localStorage.removeItem("pocket-balance-goal"); }
+        }
+      }
+      setLoaded(true);
     };
-    window.addEventListener("storage", syncEntries);
-    setLoaded(true);
-    return () => window.removeEventListener("storage", syncEntries);
+    loadData();
+    if (!isSupabaseConfigured || !supabase) return () => { active = false; };
+    const client = supabase;
+    const channel = client.channel("pocket-balance-sync")
+      .on("postgres_changes", { event: "*", schema: "public", table: "entries" }, loadData)
+      .on("postgres_changes", { event: "*", schema: "public", table: "savings" }, loadData)
+      .subscribe();
+    return () => { active = false; void client.removeChannel(channel); };
   }, []);
   useEffect(() => {
     const select = document.querySelector<HTMLSelectElement>('select[aria-label="เลือกช่วงเวลา"]');
@@ -147,13 +185,23 @@ export default function Home() {
       container.classList.remove("month-picker-container");
     };
   }, [selectedMonth]);
-  useEffect(() => { if (loaded) window.localStorage.setItem("pocket-balance-entries", JSON.stringify(entries)); }, [entries, loaded]);
   useEffect(() => {
-    const savedGoal = window.localStorage.getItem("pocket-balance-goal");
-    if (savedGoal) setGoal(JSON.parse(savedGoal));
-  }, []);
+    if (!loaded || isSupabaseConfigured || !window) return;
+    window.localStorage.setItem("pocket-balance-entries", JSON.stringify(entries));
+  }, [entries, loaded]);
   useEffect(() => {
-    if (loaded) window.localStorage.setItem("pocket-balance-goal", JSON.stringify(goal));
+    if (!loaded || isSupabaseConfigured || !window) return;
+    window.localStorage.setItem("pocket-balance-goal", JSON.stringify(goal));
+  }, [goal, loaded]);
+  useEffect(() => {
+    if (!loaded || !isSupabaseConfigured || !supabase) return;
+    const savings = Object.entries(goal)
+      .filter(([month_key, amount]) => /^[0-9]{4}-[0-9]{2}$/.test(month_key) && Number.isFinite(amount) && amount >= 0)
+      .map(([month_key, amount]) => ({ month_key, amount }));
+    if (savings.length === 0) return;
+    void supabase.from("savings").upsert(savings, { onConflict: "month_key" }).then(({ error }) => {
+      if (error) console.error("Supabase savings save failed", { message: error.message, details: error.details, hint: error.hint, code: error.code });
+    });
   }, [goal, loaded]);
   useEffect(() => {
     if (!showForm) return;
@@ -234,10 +282,27 @@ export default function Home() {
     }
     const entry = { id: editingId ?? Date.now(), title, category: form.category, amount, type: form.type, date: editingId ? entries.find((item) => item.id === editingId)?.date ?? new Date().toISOString().slice(0, 10) : new Date().toISOString().slice(0, 10) };
     setEntries((items) => editingId ? items.map((item) => item.id === editingId ? entry : item) : [entry, ...items]);
+    void saveRemoteEntry(entry);
     setForm({ title: "", category: "รายได้ประจำ", amount: "", type: "expense" });
     setFormError("");
     setEditingId(null);
     setShowForm(false);
+  }
+
+  async function saveRemoteEntry(entry: Entry) {
+    if (!isSupabaseConfigured || !supabase) return;
+    const { error } = await supabase.from("entries").upsert({
+      id: entry.id,
+      title: entry.title,
+      category: entry.category,
+      amount: entry.amount,
+      type: entry.type,
+      entry_date: entry.date,
+    }, { onConflict: "id" });
+    if (error) {
+      console.error("Supabase entry save failed", { message: error.message, details: error.details, hint: error.hint, code: error.code });
+      setAlertMessage("บันทึกรายการลง Supabase ไม่สำเร็จ กรุณาตรวจสอบตาราง entries");
+    }
   }
 
   function editEntry(entry: Entry) {
@@ -257,6 +322,9 @@ export default function Home() {
 
   function removeEntry(id: number) {
     setEntries((items) => items.filter((item) => item.id !== id));
+    if (isSupabaseConfigured && supabase) void supabase.from("entries").delete().eq("id", id).then(({ error }) => {
+      if (error) console.error("Supabase entry delete failed", error);
+    });
   }
 
   function removeSaving(month: string) {
@@ -264,6 +332,9 @@ export default function Home() {
       const nextGoal = { ...items };
       delete nextGoal[month];
       return nextGoal;
+    });
+    if (isSupabaseConfigured && supabase) void supabase.from("savings").delete().eq("month_key", month).then(({ error }) => {
+      if (error) console.error("Supabase saving delete failed", error);
     });
   }
 
