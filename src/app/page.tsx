@@ -282,10 +282,11 @@ useEffect(() => {
       window.scrollTo({ top: 0, behavior: "smooth" });
       return;
     }
-    const sections = Array.from(document.querySelectorAll("main section"));
+    
     const target = section === "savings"
-      ? sections.find((item) => item.textContent?.includes("เป้าหมายการออม"))
-      : sections.find((item) => item.querySelector("h2")?.textContent === "รายการล่าสุด");
+      ? document.getElementById("savings-section")
+      : document.getElementById("transactions-section");
+
     target?.scrollIntoView({ behavior: "smooth", block: "start" });
   }
 
@@ -569,7 +570,7 @@ useEffect(() => {
             </section>
 
             {/* Recent Transactions (Short) */}
-            <section className="animate-rise delay-2 rounded-2xl border border-[#e7eeeb] bg-white p-6 shadow-[0_4px_24px_rgba(35,52,59,0.03)]">
+            <section id="transactions-section" className="animate-rise delay-2 rounded-2xl border border-[#e7eeeb] bg-white p-6 shadow-[0_4px_24px_rgba(35,52,59,0.03)]">
               <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center border-b border-[#e7eeeb] pb-4">
                 <div>
                   <h2 className="text-lg font-semibold text-[#23343b]">รายการล่าสุด</h2>
@@ -612,7 +613,7 @@ useEffect(() => {
           </div>
           
           {/* Savings Section (Side by side blocks instead of Full list) */}
-          <section className="mt-12 flex flex-col md:flex-row gap-6 items-start">
+          <section id="savings-section" className="mt-12 flex flex-col md:flex-row gap-6 items-start">
             
             {/* Savings Goal Card */}
             <div className="w-full max-w-md rounded-2xl border border-[#e7eeeb] bg-white p-6 md:p-8 shadow-[0_4px_24px_rgba(35,52,59,0.03)]">
