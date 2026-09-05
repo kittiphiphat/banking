@@ -44,13 +44,14 @@ button:disabled { cursor: not-allowed; opacity: 0.6; }
 .delay-3 { animation-delay: 0.15s; }
 
 /* Select & Picker Overrides */
+/* Select & Picker Overrides */
 select { appearance: none; }
 select[aria-label="เลือกช่วงเวลา"] {
   min-width: 10rem;
   cursor: pointer;
   border: 1px solid var(--border);
-  border-radius: 8px;
-  padding: 0.5rem 2rem 0.5rem 1rem;
+  border-radius: 0.75rem; /* ปรับเป็น 0.75rem (12px) ให้เท่า rounded-xl */
+  padding: 0.75rem 1rem; /* ปรับเป็น py-3 px-4 ให้เท่า Input */
   color: var(--tea-dark);
   font-weight: 600;
   background: #ffffff;
@@ -62,16 +63,20 @@ select[aria-label="เลือกช่วงเวลา"]:focus {
   border-color: var(--tea);
 }
 
-.month-picker-container { position: relative; }
+.month-picker-container { position: relative; height: 100%; }
 .month-picker-container > svg { display: none; }
-.custom-month-picker { position: relative; min-width: 10rem; }
+.custom-month-picker { position: relative; min-width: 10rem; height: 100%; }
 .custom-category-picker { width: 100%; min-width: 0; }
 
 .custom-month-trigger { 
-  display: flex; width: 100%; min-height: 40px; align-items: center; justify-content: space-between; 
-  border: 1px solid var(--border); border-radius: 8px; background: #ffffff; 
-  padding: 0.5rem 1rem; color: var(--ink); font-size: 0.875rem; font-weight: 500; 
-  box-shadow: 0 1px 2px rgba(0,0,0,0.02);
+  display: flex; width: 100%; height: 100%; min-height: 46px; /* บังคับขั้นต่ำให้เท่า py-3 */
+  align-items: center; justify-content: space-between; 
+  border: 1px solid var(--border); 
+  border-radius: 0.75rem; /* ปรับเป็น rounded-xl */
+  background: #ffffff; 
+  padding: 0.75rem 1rem; /* ปรับ Padding ให้เท่า Input จำนวนเงิน */
+  color: var(--ink); font-size: 0.875rem; font-weight: 500; 
+  transition: all 0.2s ease;
 }
 .custom-month-trigger::after { 
   content: ""; width: 0.45rem; height: 0.45rem; margin: -0.2rem 0.15rem 0 0.75rem; 
@@ -80,15 +85,23 @@ select[aria-label="เลือกช่วงเวลา"]:focus {
 }
 .custom-month-trigger[aria-expanded="true"]::after { margin-top: 0.2rem; transform: rotate(225deg); }
 .custom-month-trigger:hover { background: var(--tea-soft); color: var(--tea-dark); }
+/* เพิ่ม Focus State ให้เหมือน Input */
+.custom-month-trigger:focus-within {
+  border-color: var(--tea);
+  box-shadow: 0 0 0 1px var(--tea);
+  outline: none;
+}
 
 .custom-month-menu { 
-  position: absolute; top: calc(100% + 0.5rem); right: 0; z-index: 30; display: none; width: 100%; 
-  overflow: hidden; border: 1px solid var(--border); border-radius: 8px; background: #ffffff; 
+  position: absolute; top: calc(100% + 0.5rem); right: 0; z-index: 50; display: none; width: 100%; 
+  overflow: hidden; border: 1px solid var(--border); 
+  border-radius: 0.75rem; /* ปรับขอบโค้งของเมนูให้เป็น rounded-xl ด้วย */
+  background: #ffffff; 
   padding: 0.35rem; box-shadow: 0 10px 25px -5px rgba(0,0,0,0.08); 
 }
 .custom-month-menu.is-open { display: grid; }
 .custom-month-option { 
-  width: 100%; border: 0; border-radius: 6px; background: transparent; padding: 0.6rem 0.75rem; 
+  width: 100%; border: 0; border-radius: 8px; background: transparent; padding: 0.6rem 0.75rem; 
   color: var(--ink); text-align: left; font-size: 0.875rem; font-weight: 500; 
 }
 .custom-month-option:hover { background: var(--tea-soft); color: var(--tea-dark); }

@@ -113,12 +113,18 @@ export default function Home() {
     Array.from(select.options)
       .sort((first, second) => categoryOrder.indexOf(first.textContent ?? "") - categoryOrder.indexOf(second.textContent ?? ""))
       .forEach((option) => select.append(option));
+      
     const picker = document.createElement("div");
-    picker.className = "custom-month-picker custom-category-picker";
+    // อัปเดต Class เพิ่ม w-full h-full
+    picker.className = "custom-month-picker custom-category-picker relative w-full h-full";
+    
     const trigger = document.createElement("button");
     trigger.type = "button";
-    trigger.className = "custom-month-trigger";
-    trigger.textContent = select.options[select.selectedIndex]?.textContent ?? "เลือกหมวดหมู่";
+    // อัปเดต Class ปรับแต่งขนาดและเส้นขอบให้เหมือน Input ฝั่งขวา
+    trigger.className = "custom-month-trigger flex h-full w-full items-center justify-between rounded-xl border border-[#e7eeeb] bg-white px-4 text-sm outline-none transition-colors focus:border-[#80A867] focus:ring-1 focus:ring-[#80A867]";
+    // อัปเดต innerHTML เพื่อใส่ไอคอนลูกศร
+    trigger.innerHTML = `<span>${select.options[select.selectedIndex]?.textContent ?? "เลือกหมวดหมู่"}</span><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-[#819087]"><path d="m6 9 6 6 6-6"/></svg>`;
+    
     const menu = document.createElement("div");
     menu.className = "custom-month-menu";
     Array.from(select.options).forEach((item) => {
@@ -137,6 +143,7 @@ export default function Home() {
     trigger.addEventListener("click", () => menu.classList.toggle("is-open"));
     picker.append(trigger, menu);
     container.append(picker);
+    
     return () => {
       picker.remove();
       select.style.display = "";
@@ -218,7 +225,6 @@ export default function Home() {
       const entry = filtered[index];
       if (!entry || row.querySelector("[data-latest-delete]") || row.querySelector("button")) return;
       
-      // เพิ่มปุ่มแก้ไขรายการ ในรายการล่าสุด
       const editButton = document.createElement("button");
       editButton.type = "button";
       editButton.dataset.latestDelete = "true";
@@ -434,20 +440,24 @@ export default function Home() {
               <input required value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} placeholder="เช่น เงินเดือน, ค่าอาหาร" className="mt-2 w-full rounded-xl border border-[#e7eeeb] bg-white px-4 py-3 text-sm outline-none transition-colors focus:border-[#80A867] focus:ring-1 focus:ring-[#80A867]" />
             </label>
 
+
             <div className="mt-4 grid grid-cols-2 gap-4">
-              <label className="text-sm font-medium text-[#23343b]">
-                หมวดหมู่
-                <select value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value })} className="mt-2 w-full rounded-xl border border-[#e7eeeb] bg-white px-4 py-3 text-sm outline-none transition-colors focus:border-[#80A867] focus:ring-1 focus:ring-[#80A867]">
-                  <option>อาหาร</option><option>เดินทาง</option><option>ที่อยู่อาศัย</option><option>ของใช้</option><option>รายได้ประจำ</option><option>รายได้เสริม</option>
-                </select>
-              </label>
-              <label className="text-sm font-medium text-[#23343b]">
-                จำนวนเงิน
-                <div className="relative mt-2">
-                  <span className="absolute left-4 top-1/2 -translate-y-1/2 text-[#819087] font-sans-en">฿</span>
-                  <input required min="0" type="number" step="0.01" value={form.amount} onChange={(e) => setForm({ ...form, amount: e.target.value })} placeholder="0.00" className="w-full rounded-xl border border-[#e7eeeb] bg-white py-3 pl-8 pr-4 text-sm font-sans-en outline-none transition-colors focus:border-[#80A867] focus:ring-1 focus:ring-[#80A867]" />
+              <div className="flex flex-col gap-2">
+                <label className="text-sm font-medium text-[#23343b]">หมวดหมู่</label>
+                <div className="relative w-full h-11.5">
+                  <select value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value })} className="h-full w-full rounded-xl border border-[#e7eeeb] bg-white px-4 text-sm outline-none transition-colors focus:border-[#80A867] focus:ring-1 focus:ring-[#80A867]">
+                    <option>อาหาร</option><option>เดินทาง</option><option>ที่อยู่อาศัย</option><option>ของใช้</option><option>รายได้ประจำ</option><option>รายได้เสริม</option>
+                  </select>
                 </div>
-              </label>
+              </div>
+              
+              <div className="flex flex-col gap-2">
+                <label className="text-sm font-medium text-[#23343b]">จำนวนเงิน</label>
+                <div className="relative w-full h-11.5">
+                  <span className="absolute left-4 top-1/2 -translate-y-1/2 text-[#819087] font-sans-en">฿</span>
+                  <input required min="0" type="number" step="0.01" value={form.amount} onChange={(e) => setForm({ ...form, amount: e.target.value })} placeholder="0.00" className="h-full w-full rounded-xl border border-[#e7eeeb] bg-white pl-8 pr-4 text-sm font-sans-en outline-none transition-colors focus:border-[#80A867] focus:ring-1 focus:ring-[#80A867]" />
+                </div>
+              </div>
             </div>
             
             <button className="mt-8 flex w-full items-center justify-center gap-2 rounded-xl bg-[#80A867] py-3.5 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-[#5D7F4A] focus:ring-4 focus:ring-[#EEF5E8]">
