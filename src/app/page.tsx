@@ -103,7 +103,7 @@ export default function Home() {
     select.value = selectedMonth;
   }, [selectedMonth]);
 
-  useEffect(() => {
+useEffect(() => {
     const select = document.querySelector<HTMLSelectElement>('select:not([aria-label="เลือกช่วงเวลา"])');
     const container = select?.parentElement;
     if (!select || !container) return;
@@ -115,15 +115,16 @@ export default function Home() {
       .forEach((option) => select.append(option));
       
     const picker = document.createElement("div");
-    // อัปเดต Class เพิ่ม w-full h-full
-    picker.className = "custom-month-picker custom-category-picker relative w-full h-full";
+    picker.className = "custom-month-picker custom-category-picker relative w-full h-[46px]"; // เพิ่ม h-[46px] เพื่อความชัวร์
     
     const trigger = document.createElement("button");
     trigger.type = "button";
-    // อัปเดต Class ปรับแต่งขนาดและเส้นขอบให้เหมือน Input ฝั่งขวา
     trigger.className = "custom-month-trigger flex h-full w-full items-center justify-between rounded-xl border border-[#e7eeeb] bg-white px-4 text-sm outline-none transition-colors focus:border-[#80A867] focus:ring-1 focus:ring-[#80A867]";
-    // อัปเดต innerHTML เพื่อใส่ไอคอนลูกศร
-    trigger.innerHTML = `<span>${select.options[select.selectedIndex]?.textContent ?? "เลือกหมวดหมู่"}</span><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-[#819087]"><path d="m6 9 6 6 6-6"/></svg>`;
+    
+    // 1. ลบ <svg> ออกให้เหลือแค่ <span>
+    trigger.innerHTML = `<span>${select.options[select.selectedIndex]?.textContent ?? "เลือกหมวดหมู่"}</span>`;
+    // 2. กำหนดสถานะเริ่มต้นให้ลูกศร
+    trigger.setAttribute("aria-expanded", "false"); 
     
     const menu = document.createElement("div");
     menu.className = "custom-month-menu";
@@ -137,10 +138,17 @@ export default function Home() {
         select.value = item.value;
         select.dispatchEvent(new Event("change", { bubbles: true }));
         menu.classList.remove("is-open");
+        trigger.setAttribute("aria-expanded", "false"); // รีเซ็ตลูกศรเมื่อเลือกเสร็จ
       });
       menu.append(option);
     });
-    trigger.addEventListener("click", () => menu.classList.toggle("is-open"));
+    
+    // 3. เพิ่มการสลับสถานะ aria-expanded ตอนกดเปิด/ปิดเมนู
+    trigger.addEventListener("click", () => {
+      const isOpen = menu.classList.toggle("is-open");
+      trigger.setAttribute("aria-expanded", String(isOpen));
+    });
+    
     picker.append(trigger, menu);
     container.append(picker);
     
